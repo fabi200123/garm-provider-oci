@@ -81,3 +81,7 @@ func (o *OciCli) ListInstances(ctx context.Context) error {
 func (o *OciCli) StopInstance(ctx context.Context, instanceID string) error {
 	return nil
 }
+
+func (o *OciCli) StartInstance(ctx context.Context, instanceID string) error {
+	return nil
+}

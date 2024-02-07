@@ -84,5 +84,5 @@ func (o *OciProvider) Stop(ctx context.Context, instance string, force bool) err
 }
 
 func (o *OciProvider) Start(ctx context.Context, instance string) error {
-	return nil
+	return o.ociCli.StartInstance(ctx, instance)
 }
