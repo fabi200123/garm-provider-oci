@@ -23,12 +23,14 @@ import (
 	"github.com/cloudbase/garm-provider-common/params"
 	"github.com/cloudbase/garm-provider-oci/config"
 	"github.com/cloudbase/garm-provider-oci/internal/client"
+	"github.com/cloudbase/garm-provider-oci/internal/spec"
+	"github.com/cloudbase/garm-provider-oci/internal/util"
 )
 
 var _ execution.ExternalProvider = &OciProvider{}
 
-func NewOciProvider(ctx context.Context, configPath string, controllerID string) (*OciProvider, error) {
-	conf, err := config.NewConfig(configPath)
+func NewOciProvider(ctx context.Context, cfgFile string, controllerID string) (*OciProvider, error) {
+	conf, err := config.NewConfig(cfgFile)
 	if err != nil {
 		return nil, fmt.Errorf("error loading config: %w", err)
 	}
@@ -37,18 +39,36 @@ func NewOciProvider(ctx context.Context, configPath string, controllerID string)
 		return nil, fmt.Errorf("error creating oci client: %w", err)
 	}
 	return &OciProvider{
-		cfg:    conf,
-		ociCli: ociCli,
+		cfg:          conf,
+		ociCli:       ociCli,
+		controllerID: controllerID,
 	}, nil
 }
 
 type OciProvider struct {
-	cfg    *config.Config
-	ociCli *client.OciCli
+	cfg          *config.Config
+	ociCli       *client.OciCli
+	controllerID string
 }
 
 func (o *OciProvider) CreateInstance(ctx context.Context, bootstrapParams params.BootstrapInstance) (params.ProviderInstance, error) {
-	return params.ProviderInstance{}, nil
+	spec, err := spec.GetRunnerSpecFromBootstrapParams(o.cfg, bootstrapParams, o.controllerID)
+	if err != nil {
+		return params.ProviderInstance{}, fmt.Errorf("error getting runner spec: %w", err)
+	}
+
+	ociInstance, err := o.ociCli.CreateInstance(ctx, spec)
+	if err != nil {
+		return params.ProviderInstance{}, fmt.Errorf("error creating instance: %w", err)
+	}
+	instance := params.ProviderInstance{
+		ProviderID: *ociInstance.Id,
+		Name:       spec.BootstrapParams.Name,
+		OSType:     spec.BootstrapParams.OSType,
+		OSArch:     spec.BootstrapParams.OSArch,
+		Status:     "running",
+	}
+	return instance, nil
 }
 
 func (o *OciProvider) GetInstance(ctx context.Context, instanceID string) (params.ProviderInstance, error) {
@@ -56,14 +76,7 @@ func (o *OciProvider) GetInstance(ctx context.Context, instanceID string) (param
 	if err != nil {
 		return params.ProviderInstance{}, fmt.Errorf("error getting instance: %w", err)
 	}
-	providerInstance := params.ProviderInstance{
-		ProviderID: *ociInstance.Id,
-		Name:       *ociInstance.DisplayName,
-		// https://pkg.go.dev/github.com/oracle/oci-go-sdk/v49@v49.2.0/core#InstanceLifecycleStateEnum
-		Status: "running", //*ociInstance.LifecycleState
-		OSType: "linux",   //TODO: get from oci
-		OSArch: "amd64",   //TODO: get from oci
-	}
+	providerInstance := util.OciInstanceToProviderInstance(ociInstance)
 	return providerInstance, nil
 }
 
@@ -72,7 +85,15 @@ func (o *OciProvider) DeleteInstance(ctx context.Context, instanceID string) err
 }
 
 func (o *OciProvider) ListInstances(ctx context.Context, poolID string) ([]params.ProviderInstance, error) {
-	return nil, nil
+	ociInstances, err := o.ociCli.ListInstances(ctx, poolID)
+	if err != nil {
+		return nil, fmt.Errorf("error listing instances: %w", err)
+	}
+	var providerInstances []params.ProviderInstance
+	for _, ociInstance := range ociInstances {
+		providerInstances = append(providerInstances, util.OciInstanceToProviderInstance(ociInstance))
+	}
+	return providerInstances, nil
 }
 
 func (o *OciProvider) RemoveAllInstances(ctx context.Context) error {
