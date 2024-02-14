@@ -17,6 +17,7 @@ package config
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/BurntSushi/toml"
 )
@@ -37,7 +38,7 @@ type Config struct {
 	AvailabilityDomain string `toml:"availability_domain"`
 	CompartmentId      string `toml:"compartment_id"`
 	SubnetID           string `toml:"subnet_id"`
-	NsgID              string `toml:"ngs_id"`
+	NsgID              string `toml:"network_security_group_id"`
 	TenancyID          string `toml:"tenancy_id"`
 	UserID             string `toml:"user_id"`
 	Region             string `toml:"region"`
@@ -75,4 +76,12 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("private_key_path is required")
 	}
 	return nil
+}
+
+func (c *Config) GetPrivateKey() (string, error) {
+	pemFileContent, err := os.ReadFile(c.PrivateKeyPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read the .pem file: %v", err)
+	}
+	return string(pemFileContent), nil
 }

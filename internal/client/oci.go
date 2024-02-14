@@ -18,7 +18,6 @@ package client
 import (
 	"context"
 	"fmt"
-	"os"
 
 	"github.com/cloudbase/garm-provider-oci/config"
 	"github.com/cloudbase/garm-provider-oci/internal/spec"
@@ -27,16 +26,16 @@ import (
 )
 
 func NewOciCli(ctx context.Context, cfg *config.Config) (*OciCli, error) {
-	pemFileContent, err := os.ReadFile(cfg.PrivateKeyPath)
+	privateKey, err := cfg.GetPrivateKey()
 	if err != nil {
-		return nil, fmt.Errorf("failed to read the .pem file: %v", err)
+		return nil, fmt.Errorf("error getting private key: %w", err)
 	}
 	confProvider := common.NewRawConfigurationProvider(
 		cfg.TenancyID,
 		cfg.UserID,
 		cfg.Region,
 		cfg.Fingerprint,
-		string(pemFileContent),
+		privateKey,
 		common.String(cfg.PrivateKeyPassword),
 	)
 	computeClient, err := core.NewComputeClientWithConfigurationProvider(confProvider)
@@ -153,4 +152,15 @@ func (o *OciCli) StartInstance(ctx context.Context, instanceID string) error {
 		return fmt.Errorf("error starting instance: %w", err)
 	}
 	return nil
+}
+
+func (o *OciCli) GetImage(ctx context.Context, imageID string) (core.Image, error) {
+	req := core.GetImageRequest{
+		ImageId: &imageID,
+	}
+	resp, err := o.computeClient.GetImage(ctx, req)
+	if err != nil {
+		return core.Image{}, fmt.Errorf("error getting image: %w", err)
+	}
+	return resp.Image, nil
 }

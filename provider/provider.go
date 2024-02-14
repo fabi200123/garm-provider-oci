@@ -76,7 +76,11 @@ func (o *OciProvider) GetInstance(ctx context.Context, instanceID string) (param
 	if err != nil {
 		return params.ProviderInstance{}, fmt.Errorf("error getting instance: %w", err)
 	}
-	providerInstance := util.OciInstanceToProviderInstance(ociInstance)
+	image, err := o.ociCli.GetImage(ctx, *ociInstance.ImageId)
+	if err != nil {
+		return params.ProviderInstance{}, fmt.Errorf("error getting image: %w", err)
+	}
+	providerInstance := util.OciInstanceToProviderInstance(ociInstance, image)
 	return providerInstance, nil
 }
 
@@ -91,7 +95,11 @@ func (o *OciProvider) ListInstances(ctx context.Context, poolID string) ([]param
 	}
 	var providerInstances []params.ProviderInstance
 	for _, ociInstance := range ociInstances {
-		providerInstances = append(providerInstances, util.OciInstanceToProviderInstance(ociInstance))
+		image, err := o.ociCli.GetImage(ctx, *ociInstance.ImageId)
+		if err != nil {
+			return nil, fmt.Errorf("error getting image: %w", err)
+		}
+		providerInstances = append(providerInstances, util.OciInstanceToProviderInstance(ociInstance, image))
 	}
 	return providerInstances, nil
 }

@@ -20,23 +20,22 @@ import (
 	"github.com/oracle/oci-go-sdk/v49/core"
 )
 
-func OciInstanceToProviderInstance(ociInstance core.Instance) params.ProviderInstance {
+func OciInstanceToProviderInstance(ociInstance core.Instance, image core.Image) params.ProviderInstance {
 	details := params.ProviderInstance{
 		ProviderID: *ociInstance.Id,
 		Name:       *ociInstance.DisplayName,
-		OSType:     "linux", //TODO: get from oci
-		OSArch:     "amd64", //TODO: get from oci
+		OSType:     params.OSType(*image.OperatingSystem),
+		OSArch:     params.OSArch(ociInstance.FreeformTags["osarch"]),
 	}
 
 	switch ociInstance.LifecycleState {
 	case core.InstanceLifecycleStateRunning:
-		details.Status = "running"
-	case core.InstanceLifecycleStateStopped,
-		core.InstanceLifecycleStateTerminated:
+		details.Status = params.InstanceRunning
+	case core.InstanceLifecycleStateStopped, core.InstanceLifecycleStateTerminated:
 
-		details.Status = "stopped"
+		details.Status = params.InstanceStopped
 	default:
-		details.Status = "unknown"
+		details.Status = params.InstanceStatusUnknown
 	}
 
 	return details
