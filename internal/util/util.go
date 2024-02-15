@@ -14,3 +14,29 @@
 //    under the License.
 
 package util
+
+import (
+	"github.com/cloudbase/garm-provider-common/params"
+	"github.com/oracle/oci-go-sdk/v49/core"
+)
+
+func OciInstanceToProviderInstance(ociInstance core.Instance, image core.Image) params.ProviderInstance {
+	details := params.ProviderInstance{
+		ProviderID: *ociInstance.Id,
+		Name:       *ociInstance.DisplayName,
+		OSType:     params.OSType(*image.OperatingSystem),
+		OSArch:     params.OSArch(ociInstance.FreeformTags["osarch"]),
+	}
+
+	switch ociInstance.LifecycleState {
+	case core.InstanceLifecycleStateRunning:
+		details.Status = params.InstanceRunning
+	case core.InstanceLifecycleStateStopped, core.InstanceLifecycleStateTerminated:
+
+		details.Status = params.InstanceStopped
+	default:
+		details.Status = params.InstanceStatusUnknown
+	}
+
+	return details
+}

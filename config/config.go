@@ -17,6 +17,7 @@ package config
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/BurntSushi/toml"
 )
@@ -34,15 +35,31 @@ func NewConfig(cfgFile string) (*Config, error) {
 }
 
 type Config struct {
-	TenancyID          string `yaml:"tenancy_id"`
-	UserID             string `yaml:"user_id"`
-	Region             string `yaml:"region"`
-	Fingerprint        string `yaml:"fingerprint"`
-	PrivateKeyPath     string `yaml:"private_key_path"`
-	PrivateKeyPassword string `yaml:"private_key_password"`
+	AvailabilityDomain string `toml:"availability_domain"`
+	CompartmentId      string `toml:"compartment_id"`
+	SubnetID           string `toml:"subnet_id"`
+	NsgID              string `toml:"network_security_group_id"`
+	TenancyID          string `toml:"tenancy_id"`
+	UserID             string `toml:"user_id"`
+	Region             string `toml:"region"`
+	Fingerprint        string `toml:"fingerprint"`
+	PrivateKeyPath     string `toml:"private_key_path"`
+	PrivateKeyPassword string `toml:"private_key_password"`
 }
 
 func (c *Config) Validate() error {
+	if c.AvailabilityDomain == "" {
+		return fmt.Errorf("availability_domain is required")
+	}
+	if c.CompartmentId == "" {
+		return fmt.Errorf("compartment_id is required")
+	}
+	if c.SubnetID == "" {
+		return fmt.Errorf("subnet_id is required")
+	}
+	if c.NsgID == "" {
+		return fmt.Errorf("ngs_id is required")
+	}
 	if c.TenancyID == "" {
 		return fmt.Errorf("tenancy_id is required")
 	}
@@ -59,4 +76,12 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("private_key_path is required")
 	}
 	return nil
+}
+
+func (c *Config) GetPrivateKey() (string, error) {
+	pemFileContent, err := os.ReadFile(c.PrivateKeyPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read the .pem file: %v", err)
+	}
+	return string(pemFileContent), nil
 }
